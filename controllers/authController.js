@@ -19,37 +19,43 @@ const generateTokens = (user) => {
   return { access_token, refresh_token };
 };
 
-
 export const register = async (req, res) => {
   const { student_id, username, email, password, role } = req.body;
   if (!student_id || !email || !password) {
-    return res.status(400).json({ message: "student_id, email, and password are required" });
+    return res
+      .status(400)
+      .json({ message: "student_id, email, and password are required" });
   }
 
-  const password_hash = await bcrypt.hash(password, 10);
-  const user_id = uuidv4();
+  try {
+    const password_hash = await bcrypt.hash(password, 10);
+    const user_id = uuidv4();
 
-
-  const user = await sql`
+    const user = await sql`
     INSERT INTO tbl_authentication_users(user_id, student_id, username, email, password_hash, role, created_at, updated_at)
     VALUES(${user_id}, ${student_id}, ${username}, ${email}, ${password_hash}, ${role}, NOW(), NOW())
     RETURNING *
   `;
 
-  res.json({
-    user_id: user[0].user_id,
-    student_id: user[0].student_id,
-    username: user[0].username,
-    email: user[0].email,
-    role: user[0].role,
-    created_at: user[0].created_at,
-    updated_at: user[0].updated_at,
-  });
+    res.json({
+      user_id: user[0].user_id,
+      student_id: user[0].student_id,
+      username: user[0].username,
+      email: user[0].email,
+      role: user[0].role,
+      created_at: user[0].created_at,
+      updated_at: user[0].updated_at,
+    });
+  } catch (error) {
+    console.error("Error registering user:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  const users = await sql`SELECT * FROM tbl_authentication_users WHERE email=${email}`;
+  const users =
+    await sql`SELECT * FROM tbl_authentication_users WHERE email=${email}`;
   if (!users.length) return res.status(404).json({ message: "User not found" });
 
   const user = users[0];
@@ -59,7 +65,11 @@ export const login = async (req, res) => {
     return res.status(401).json({ message: "Incorrect password" });
   }
 
-  const token = jwt.sign({ user_id: user.user_id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  const token = jwt.sign(
+    { user_id: user.user_id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
 
   res.json({
     token,
@@ -69,11 +79,9 @@ export const login = async (req, res) => {
   });
 };
 
-
 export const logout = async (req, res) => {
   res.json({ message: "Logout successful" });
 };
-
 
 export const getUserById = async (req, res) => {
   const { id } = req.params;
@@ -104,10 +112,16 @@ export const getUserById = async (req, res) => {
   });
 };
 
-
 export const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { first_name, last_name, address, contact_number, birthdate, tuition_beneficiary_status } = req.body;
+  const {
+    first_name,
+    last_name,
+    address,
+    contact_number,
+    birthdate,
+    tuition_beneficiary_status,
+  } = req.body;
 
   const profile = await sql`
     INSERT INTO tbl_authentication_user_profiles(user_id, first_name, last_name, address, contact_number, birthdate, tuition_beneficiary_status)
@@ -119,7 +133,6 @@ export const updateUser = async (req, res) => {
 
   res.json(profile[0]);
 };
-
 
 export const refresh = async (req, res) => {
   const { refresh_token } = req.body;
@@ -140,7 +153,6 @@ export const passwordForgot = async (req, res) => {
   });
 };
 
-
 export const passwordReset = async (req, res) => {
   const { user_id, reset_token, expires_at } = req.body;
   res.json({
@@ -152,7 +164,6 @@ export const passwordReset = async (req, res) => {
   });
 };
 
-
 export const failedLogin = async (req, res) => {
   const { user_id, attempt_time, ip_address } = req.body;
   res.json({
@@ -162,7 +173,6 @@ export const failedLogin = async (req, res) => {
     ip_address,
   });
 };
-
 
 export const validateUserToken = (req, res) => {
   res.json({
